@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>暨南大学JCP经济仿真实验</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: system-ui, 'Segoe UI', 'Roboto', monospace; }
+        body { background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .card { background: white; border-radius: 24px; box-shadow: 0 8px 20px rgba(0,0,0,0.05); padding: 1.5rem; margin-bottom: 1.8rem; }
+        .card h2, .card h3 { margin-top: 0; border-left: 5px solid #3b82f6; padding-left: 15px; color: #1e293b; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 1.5rem; }
+        .flex-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .space-between { justify-content: space-between; }
+        .value-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #eef2ff; }
+        .value-label { font-weight: 600; color: #475569; }
+        .value-number { font-size: 1.2rem; font-weight: 700; color: #1e293b; font-family: monospace; letter-spacing: 0.5px; }
+        button, .btn-primary, .btn-secondary, .btn-danger, .btn-dark { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 500; cursor: pointer; transition: 0.2s; margin: 4px 6px 4px 0; font-size: 0.85rem; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; transform: scale(0.97); }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-dark { background: #0f172a; color: white; }
+        .btn-link { background: transparent; color: #3b82f6; text-decoration: underline; padding: 4px 8px; }
+        input, select, textarea { padding: 8px 12px; border-radius: 20px; border: 1px solid #cbd5e1; width: 100%; margin: 6px 0; font-size: 0.9rem; }
+        .status-badge { background: #10b981; color: white; border-radius: 30px; padding: 4px 12px; font-size: 0.75rem; display: inline-block; }
+        .console-log { background: #0f172a; color: #a5f3c3; font-family: monospace; padding: 12px; border-radius: 16px; height: 200px; overflow-y: auto; font-size: 12px; }
+        .error-msg { color: #b91c1c; background: #fee2e2; border-radius: 14px; padding: 6px 12px; margin: 8px 0; }
+        .proposals-list { max-height: 400px; overflow-y: auto; font-size: 0.8rem; }
+        .proposal-item { background: #f8fafc; border-radius: 16px; padding: 12px; margin-bottom: 8px; border-left: 4px solid #3b82f6; }
+        .skills-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; max-height: 400px; overflow-y: auto; padding: 4px; }
+        .skill-card { background: #f1f5f9; border-radius: 16px; padding: 12px; transition: 0.1s; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; max-width: 700px; width: 90%; margin: auto; padding: 20px; border-radius: 32px; }
+        .config-row { background: #f1f5f9; border-radius: 20px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .config-row label { flex: 1; font-weight: 600; }
+        .config-row input { flex: 3; font-family: monospace; font-size: 0.7rem; min-width: 200px; }
+        .config-row a { flex-shrink: 0; }
+        .info-banner { background: #dbeafe; color: #1e40af; padding: 10px; border-radius: 16px; margin-bottom: 16px; font-size: 0.85rem; }
+        .form-label { font-weight: 600; color: #334155; margin-top: 8px; display: block; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .hint-text { font-size: 0.7rem; color: #6b7280; margin-top: -4px; margin-bottom: 8px; }
+        .block-info { background: #eef2ff; padding: 8px 12px; border-radius: 20px; margin-bottom: 12px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .etherscan-link { margin-left: 6px; text-decoration: none; font-size: 0.7rem; }
+        @media (max-width: 800px) { 
+            .grid-2 { grid-template-columns: 1fr; } 
+            .skills-container { grid-template-columns: 1fr; }
+        }
+        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.35); backdrop-filter: blur(6px); z-index: 9999; justify-content: center; align-items: center; }
+        .loading-box { background: #1e293b; color: #e2e8f0; padding: 32px 48px; border-radius: 24px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+        .loading-spinner { width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.15); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-size: 1rem; font-weight: 600; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body>
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-box">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">加载中...</div>
+    </div>
+</div>
+<div class="container">
+
+    <!-- 顶部栏 -->
+    <div class="card header-card">
+        <div class="flex-row space-between">
+            <div><strong>⚡ JCP 经济仿真实验 | Sepolia</strong><span id="network-status" class="status-badge">检测中...</span><button id="manual-switch-sepolia" class="btn-secondary">🔄 切换至Sepolia</button></div>
+            <div><button id="open-config-btn" class="btn-dark">⚙️ 修改合约地址</button></div>
+        </div>
+        <div class="flex-row" style="margin-top: 8px;">
+            <span>💰 账户: <span id="user-address">未连接</span></span>
+            <button id="connect-wallet-btn" class="btn-primary">🔌 连接钱包</button>
+            <button id="refresh-all-btn" class="btn-secondary">🔄 强制刷新</button>
+        </div>
+    </div>
+
+    <!-- 技能市场 -->
+    <div class="card">
+        <h3>📚 技能市场 (提交技能获JCP)</h3>
+        <div class="flex-row">
+            <input id="skill-name" placeholder="输入您的劳动成果描述" style="flex:3">
+            <button id="submit-skill-btn" class="btn-primary">✨ 提交技能</button>
+        </div>
+        <div class="flex-row space-between" style="margin-top: 12px;">
+            <span>📄 技能列表 第 <span id="skill-page">1</span> 页 / 共 <span id="skill-total-pages">0</span> 页</span>
+            <div>
+                <button id="prev-skill-page" class="btn-secondary">◀ 上一页</button>
+                <button id="next-skill-page" class="btn-secondary">下一页 ▶</button>
+                <button id="download-all-skills" class="btn-secondary">📥 导出为Excel (CSV)</button>
+            </div>
+        </div>
+        <div id="skills-container" class="skills-container">-- 技能列表 --</div>
+    </div>
+
+    <!-- 资产 & 流动性 -->
+    <div class="grid-2">
+        <div class="card">
+            <h3>💰 资产与授权</h3>
+            <div class="value-row"><span class="value-label">JCP 余额</span><span class="value-number" id="jcp-balance">0</span></div>
+            <div class="value-row"><span class="value-label">JCPUSD 余额</span><span class="value-number" id="usd-balance">0</span></div>
+            <div class="value-row"><span class="value-label">LP 代币余额</span><span class="value-number" id="lp-balance">0</span></div>
+            <div class="value-row"><span class="value-label">DEX 授权额度</span><span class="value-number" id="allowance-jcp">0</span></div>
+            <hr>
+            <div class="flex-row"><input type="text" id="approve-amount" placeholder="授权数量 (ether)" value="1000"><button id="approve-dex" class="btn-primary">✅ 授权DEX</button></div>
+        </div>
+        <div class="card">
+            <h3>💧 流动性池 (JCP/JCPUSD)</h3>
+            <div class="value-row"><span class="value-label">池中 JCP</span><span class="value-number" id="pool-jcp">0</span></div>
+            <div class="value-row"><span class="value-label">池中 JCPUSD</span><span class="value-number" id="pool-usd">0</span></div>
+            <div class="value-row"><span class="value-label">当前价格</span><span class="value-number" id="dex-price">--</span></div>
+            <hr>
+            <div>➕ 添加流动性: <input id="add-lp-jcp" placeholder="JCP数量" value="10"> <input id="add-lp-usd" placeholder="USD数量" value="10"> <button id="add-liquidity-btn" class="btn-primary">添加</button></div>
+            <div>➖ 移除LP数量: <input id="remove-lp-amount" placeholder="LP数量 (ether)" value="1"> <button id="remove-liquidity-btn" class="btn-danger">移除流动性</button></div>
+        </div>
+    </div>
+
+    <!-- DEX 兑换 & 宏观经济 -->
+    <div class="grid-2">
+        <div class="card">
+            <h3>🔄 去中心化兑换</h3>
+            <div>卖出JCP → JCPUSD: <input id="swap-jcp-amount" placeholder="JCP数量"> <button id="swap-jcp-to-usd" class="btn-primary">兑换</button></div>
+            <div>卖出JCPUSD → JCP: <input id="swap-usd-amount" placeholder="USD数量"> <button id="swap-usd-to-jcp" class="btn-primary">兑换</button></div>
+        </div>
+        <div class="card">
+            <h3>🏦 宏观经济调控</h3>
+            <div class="value-row"><span class="value-label">劳动税率</span><span class="value-number" id="labor-tax-percent-display">--</span>%</div>
+            <div class="value-row"><span class="value-label">资本税率</span><span class="value-number" id="capital-tax-percent-display">--</span>%</div>
+            <div class="value-row"><span class="value-label">国库地址</span><span class="value-number" style="font-size:0.8rem;" id="treasury-addr">--</span><button id="refresh-treasury-btn" class="btn-secondary">刷新</button></div>
+        </div>
+    </div>
+
+    <!-- DAO 治理 -->
+    <div class="card">
+        <h3>🏛️ 链上 DAO 治理</h3>
+        <div class="block-info">
+            <span>📦 当前区块: <strong id="current-block">--</strong></span>
+            <span>⏱️ 预估出块 ~12秒</span>
+            <button id="manual-refresh-proposals" class="btn-secondary" style="padding:4px 12px;">🔄 手动刷新提案</button>
+        </div>
+        <div class="grid-2">
+            <div>
+                <h4>➕ 创建提案</h4>
+                <div class="form-label">提案类型</div>
+                <select id="prop-type">
+                    <option value="1">1-修改劳动税率</option>
+                    <option value="2">2-修改资本税率</option>
+                    <option value="3">3-转移国库资金</option>
+                    <option value="4">4-发放补贴(代币)</option>
+                    <option value="5">5-冻结账户</option>
+                    <option value="6">6-解冻账户</option>
+                </select>
+                <div class="hint-text">💡 BP = 基点，100 BP = 1%。例如 2000 BP = 20%。</div>
+                <div class="form-label">目标地址 (类型3,4,5,6需要)</div>
+                <input id="prop-addr" placeholder="0x...">
+                <div class="form-label">数值</div>
+                <input id="prop-value" placeholder="税率BP 或 代币数量 (ether)">
+                <div class="hint-text">💡 填写示例：税率直接填数字如 2000 (= 20%)；代币数量可用 10e18 表示 10 个代币。</div>
+                <div class="form-label">提案描述</div>
+                <textarea id="prop-desc" placeholder="描述此提案的内容" rows="2"></textarea>
+                <button id="propose-btn" class="btn-primary">📜 创建提案</button>
+            </div>
+            <div>
+                <h4>📋 提案列表</h4>
+                <div id="proposals-list" class="proposals-list">加载中...</div>
+                <div class="flex-row" style="margin-top: 12px;">
+                    <input id="vote-prop-id" placeholder="提案ID" style="width:80px;">
+                    <button id="vote-for" class="btn-primary">👍 赞成</button>
+                    <button id="vote-against" class="btn-primary">👎 反对</button>
+                    <button id="execute-prop" class="btn-secondary">⚡ 执行提案</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 控制台 -->
+    <div class="card">
+        <div class="flex-row space-between"><h3>📟 事件控制台</h3><button id="clear-console-inner" class="btn-secondary">清空记录</button></div>
+        <div id="console-area" class="console-log">[系统] 等待连接钱包...</div>
+    </div>
+</div>
+
+<!-- 配置弹窗 -->
+<div id="config-modal" class="modal">
+    <div class="modal-content">
+        <h3>编辑合约地址 (Sepolia)</h3>
+        <p style="font-size:0.8rem;">可修改地址，点击 🔗 在 Etherscan 上查看</p>
+        <div class="config-row"><label>JCP Token:</label><input id="cfg-jcp" placeholder="0x..."><a href="#" target="_blank" class="etherscan-link" id="link-jcp">🔗</a></div>
+        <div class="config-row"><label>JCPUSD Token:</label><input id="cfg-usd" placeholder="0x..."><a href="#" target="_blank" class="etherscan-link" id="link-usd">🔗</a></div>
+        <div class="config-row"><label>DEX 合约:</label><input id="cfg-dex" placeholder="0x..."><a href="#" target="_blank" class="etherscan-link" id="link-dex">🔗</a></div>
+        <div class="config-row"><label>DAO 合约:</label><input id="cfg-dao" placeholder="0x..."><a href="#" target="_blank" class="etherscan-link" id="link-dao">🔗</a></div>
+        <div class="config-row"><label>SkillMarket:</label><input id="cfg-skill" placeholder="0x..."><a href="#" target="_blank" class="etherscan-link" id="link-skill">🔗</a></div>
+        <div class="config-row"><label>Treasury:</label><input id="cfg-treasury" placeholder="0x..."><a href="#" target="_blank" class="etherscan-link" id="link-treasury">🔗</a></div>
+        <div class="flex-row"><button id="save-config" class="btn-primary">保存并重连</button><button id="close-config" class="btn-secondary">取消</button></div>
+    </div>
+</div>
+
+
+<!-- ==================== 全局配置 ==================== -->
+<script>
+    // 默认使用教师已部署的合约，支持用户自定义修改
+    let config = {
+        jcpToken: "0xB7195a16DF4d49Ba337E9dbF0DC5617023587A6d",     // JCPTokenFull合约
+        jcpUsdToken: "0x843e84b5F223d1D7Dd89d0A06427C9A2E408D1B2",  // JCPUSD合约
+        dex: "0x44c57Df765b369c749A414E79AF06174E6D71fFd",          // JCPDEFI合约
+        dao: "0x219Ea1eE622011Ff6CEC6DC563e17B8FeD209b62",          // JCPGovernor合约
+        skillMarket: "0x15EDad51E7316e161Dc24B80cC391Aa7144c63d5",  // skillmarket合约
+        treasury: "0xf4a30daf8860FF135fC2D81F5cC54bac88f8BE3c"      // JCPTreasury合约
+    };
+
+    // ==================== 合约 ABI ====================
+    // 注意：必须与您部署的合约接口完全一致，否则调用会失败
+
+    // JCP 代币 ABI：包含余额查询、授权、税率读取等
+    const JCP_ABI = [
+        "function balanceOf(address) view returns (uint256)",
+        "function approve(address spender, uint256 amount) returns (bool)",
+        "function allowance(address owner, address spender) view returns (uint256)",
+        "function decimals() view returns (uint8)",
+        "function laborTaxRate() view returns (uint256)",
+        "function capitalTaxRate() view returns (uint256)",
+        "function treasury() view returns (address)"
+    ];
+
+    // JCPUSD 代币 ABI
+    const JCPUSD_ABI = ["function balanceOf(address) view returns (uint256)","function approve(address spender, uint256 amount) returns (bool)","function allowance(address owner, address spender) view returns (uint256)","function decimals() view returns (uint8)"];
+    
+    // DEX 合约 ABI：包含流动性添加/移除、兑换和池子查询
+    const DEX_ABI = [
+        "function getPoolStats() view returns (uint256 reserveJCP, uint256 reserveJCPUSD, uint256 totalLP, uint256 jcpPriceInUSD)",
+        "function addLiquidity(uint256 _jcpAmount, uint256 _jcpusdAmount) external returns (uint256 liquidity)",
+        "function removeLiquidity(uint256 _lpAmount) external returns (uint256 jcpAmount, uint256 jcpusdAmount)",
+        "function swapJCPForJCPUSD(uint256 _jcpIn) external",
+        "function swapJCPUSDForJCP(uint256 _jcpusdIn) external",
+        "function balanceOf(address) view returns (uint256)"
+    ];
+
+    // DAO 合约 ABI：包含提案创建、投票、执行以及原始数据查询
+    // 注意：proposals 映射的 getter 用于获取提案原始参数，是展示详细内容的关键
+    const DAO_ABI = [
+        "function propose(uint8 _policyType, uint256 _value, address _newAddr, string memory _desc) external returns (uint256)",
+        "function vote(uint256 _id, bool _support) external",
+        "function executeProposal(uint256 _id) external",
+        "function getProposalStatus(uint256 _id) view returns (uint256 id, string summary, string desc, address currentTreasury, uint256 deadline, uint256 forVotes, uint256 againstVotes, string state)",
+        "function proposalCount() view returns (uint256)",
+        "function treasury() view returns (address)",
+        "function proposals(uint256) view returns (uint256 id, string description, uint8 policyType, uint256 targetValue, address targetAddr, uint256 startBlock, uint256 endBlock, uint256 forVotes, uint256 againstVotes, bool executed)"
+    ];
+
+    // SkillMarket ABI：分页查询技能记录
+    const SKILL_ABI = [
+        "function sellSkill(string calldata answer) external",
+        "function totalSkillsSubmitted() view returns (uint256)",
+        "function getRecordsPaged(uint256 offset, uint256 limit) view returns (tuple(address student, string content, uint256 timestamp, uint256 reward)[] memory)"
+    ];
+
+    //核心状态变量
+    let provider, signer, userAddress = null;   // ethers 对象
+    let contracts = { jcp: null, usd: null, dex: null, dao: null, skill: null };    //合约实例
+    let isReady = false;    // 检查初始化
+    let currentSkillPage = 1, skillPageSize = 10, totalSkills = 0;  // 技能列表分页
+    let currentBlock = 0;   // 区块号
+    let blockInterval = null;   // 区块定时器
+    let lastProposalCount = 0;  // 上一次提案总数
+    let firstProposalLoad = true;  // 首次加载不提示
+    let activeProposalDeadlines = new Map();    // 存储活跃提案截止区块
+
+    //辅助函数
+
+    // 控制台输出
+    function addLog(msg, isError = false) {
+        const div = document.getElementById('console-area');
+        const line = document.createElement('div');
+        line.style.color = isError ? '#f87171' : '#86efac';
+        line.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        div.appendChild(line);
+        div.scrollTop = div.scrollHeight;
+        if(isError) console.error(msg);
+        else console.log(msg);
+    }
+
+    function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
+    function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+
+    // 弹出 + 日志
+    function showToast(msg, isErr=false) { addLog(msg, isErr); alert(msg); }
+    async function withLoading(promise, loadingMsg) {
+        addLog(loadingMsg);
+        try { const res = await promise; addLog("✅ 操作成功"); return res; }
+        catch(err) { let reason = err.reason || err.message; addLog(`❌ 失败: ${reason}`, true); alert(`操作失败: ${reason.substring(0,100)}`); throw err; }
+    }
+
+    // 地址显示
+    function formatAddress(addr) { return addr ? addr.slice(0,6)+"..."+addr.slice(-6) : "—"; }
+    
+    // 默认两位两位小数
+    function formatNumber(val, decimals=2) {
+        let num = parseFloat(val);
+        if(isNaN(num)) return val;
+        return num.toFixed(decimals);
+    }
+
+    // BP转换百分比
+    function formatBpToPercent(bp) { return (bp / 100).toFixed(2); }
+
+    // 提案状态汉化
+    function tState(state) {
+        const map = { Active: '进行中', Passed: '已通过', Failed: '未通过', Executed: '已执行' };
+        return map[state] || state;
+    }
+    
+    // sepolia跳转
+    function etherscanLink(address) { return `https://sepolia.etherscan.io/address/${address}`; }
+    
+    // 打开链接
+    function openEtherscan(url) { window.open(url, '_blank'); }
+
+    // 获取区块的预估时间 (UTC+8 字符串)
+    async function getEstimatedEndTime(deadlineBlock, currentBlockNum) {
+        if(!provider) return "未知";
+        if(deadlineBlock <= currentBlockNum) {
+            try {
+                const block = await provider.getBlock(deadlineBlock);
+                if(block && block.timestamp) {
+                    return new Date(block.timestamp * 1000).toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"});
+                }
+            } catch(e) {}
+            return "已结束";
+        } else {
+            const blocksLeft = deadlineBlock - currentBlockNum;
+            try {
+                const currentBlockObj = await provider.getBlock(currentBlockNum);
+                if(currentBlockObj && currentBlockObj.timestamp) {
+                    const estimatedEnd = new Date((currentBlockObj.timestamp + blocksLeft * 12) * 1000);
+                    return estimatedEnd.toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"});
+                }
+            } catch(e) {}
+            return `≈ +${blocksLeft} 区块`;
+        }
+    }
+
+    // 轻量级检测是否需要刷新提案列表
+    async function checkProposalsNeedRefresh() {
+        if(!contracts.dao) return false;
+        try {
+            const count = (await contracts.dao.proposalCount()).toNumber();
+            if(count !== lastProposalCount) {
+                if(firstProposalLoad) {
+                    lastProposalCount = count;
+                    firstProposalLoad = false;
+                    return false;
+                }
+                addLog(`检测到新提案 (总数 ${lastProposalCount} → ${count})，刷新列表`);
+                return true;
+            }
+            firstProposalLoad = false;
+            // 2. 检查活跃提案是否结束：遍历所有之前记录的活跃提案，如果其 deadline <= currentBlock 则需刷新
+            if(activeProposalDeadlines.size > 0) {
+                for(let [id, endBlock] of activeProposalDeadlines.entries()) {
+                    if(endBlock <= currentBlock) {
+                        addLog(`提案 #${id} 已结束，刷新列表`);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch(e) {
+            console.warn("检查提案刷新失败", e);
+            return false;
+        }
+    }
+
+    // 更新区块号并检测刷新需求
+    async function updateCurrentBlock() {
+        if(provider) {
+            try {
+                const newBlock = await provider.getBlockNumber();
+                if(newBlock !== currentBlock) {
+                    currentBlock = newBlock;
+                    document.getElementById('current-block').innerText = currentBlock;
+                    // 只有需要刷新时才重新加载列表
+                    const needRefresh = await checkProposalsNeedRefresh();
+                    if(needRefresh) {
+                        await loadProposals();
+                    }
+                }
+            } catch(e) { console.warn("获取区块失败", e); }
+        }
+    }
+
+    async function initContracts() {
+        if(!signer) return false;
+        try {
+            contracts.jcp = new ethers.Contract(config.jcpToken, JCP_ABI, signer);
+            contracts.usd = new ethers.Contract(config.jcpUsdToken, JCPUSD_ABI, signer);
+            contracts.dex = new ethers.Contract(config.dex, DEX_ABI, signer);
+            contracts.dao = new ethers.Contract(config.dao, DAO_ABI, signer);
+            contracts.skill = new ethers.Contract(config.skillMarket, SKILL_ABI, signer);
+            await contracts.jcp.balanceOf(await signer.getAddress());
+            await contracts.dex.getPoolStats();
+            await contracts.dao.proposalCount();
+            await contracts.skill.totalSkillsSubmitted();
+            addLog("所有合约初始化成功");
+            return true;
+        } catch(e) { addLog(`合约初始化失败: ${e.message}`, true); return false; }
+    }
+
+    async function refreshAll() {
+        if(!isReady || !signer) { addLog("未就绪，请先连接钱包", true); return; }
+        showLoading();
+        try {
+            const addr = userAddress;
+
+            const [jcpBal, usdBal, lpBal, allowance, stats, laborRateBp, capitalRateBp, skillTotal] = await Promise.all([
+                contracts.jcp.balanceOf(addr),
+                contracts.usd.balanceOf(addr),
+                contracts.dex.balanceOf(addr),
+                contracts.jcp.allowance(addr, config.dex),
+                contracts.dex.getPoolStats(),
+                contracts.jcp.laborTaxRate(),
+                contracts.jcp.capitalTaxRate(),
+                contracts.skill.totalSkillsSubmitted()
+            ]);
+            totalSkills = skillTotal.toNumber();
+
+            document.getElementById('jcp-balance').innerText = formatNumber(ethers.utils.formatEther(jcpBal));
+            document.getElementById('usd-balance').innerText = formatNumber(ethers.utils.formatEther(usdBal));
+            document.getElementById('lp-balance').innerText = formatNumber(ethers.utils.formatEther(lpBal));
+            document.getElementById('allowance-jcp').innerText = formatNumber(ethers.utils.formatEther(allowance));
+            document.getElementById('pool-jcp').innerText = formatNumber(ethers.utils.formatEther(stats.reserveJCP));
+            document.getElementById('pool-usd').innerText = formatNumber(ethers.utils.formatEther(stats.reserveJCPUSD));
+            if (!stats.reserveJCP.isZero()) {
+                const price = formatNumber(ethers.utils.formatEther(stats.jcpPriceInUSD));
+                document.getElementById('dex-price').innerText = `1 JCP = ${price} JCPUSD`;
+            } else document.getElementById('dex-price').innerText = '--';
+            document.getElementById('labor-tax-percent-display').innerText = formatBpToPercent(laborRateBp.toNumber());
+            document.getElementById('capital-tax-percent-display').innerText = formatBpToPercent(capitalRateBp.toNumber());
+
+            let treasuryAddr = config.treasury;
+            try { treasuryAddr = await contracts.dao.treasury(); } catch(e) {}
+            document.getElementById('treasury-addr').innerText = treasuryAddr;
+
+            await Promise.all([loadSkills(), loadProposals()]);
+        } catch(e) { addLog(`刷新失败: ${e.message}`, true); }
+        hideLoading();
+    }
+
+    async function loadProposals() {
+        if(!contracts.dao) return;
+        try {
+            const count = (await contracts.dao.proposalCount()).toNumber();
+            lastProposalCount = count;
+            const newActiveDeadlines = new Map();
+            const container = document.getElementById('proposals-list');
+            container.innerHTML = '';
+
+            if(count === 0) { container.innerHTML = "<div>暂无提案</div>"; activeProposalDeadlines = newActiveDeadlines; return; }
+
+            // 分批并行查询所有提案数据
+            const BATCH = 20;
+            let allResults = [];
+            for(let batchStart = 1; batchStart <= count; batchStart += BATCH) {
+                const batchEnd = Math.min(batchStart + BATCH - 1, count);
+                const batchPromises = [];
+                for(let id = batchStart; id <= batchEnd; id++) {
+                    batchPromises.push(Promise.all([id, contracts.dao.proposals(id), contracts.dao.getProposalStatus(id)]));
+                }
+                const batch = await Promise.all(batchPromises);
+                allResults.push(...batch);
+            }
+
+            for(const [id, propRaw, propStatus] of allResults) {
+                const policyType = propRaw.policyType;
+                const targetValue = propRaw.targetValue;
+                const targetAddr = propRaw.targetAddr;
+                const endBlock = propRaw.endBlock;
+                const forVotes = propStatus.forVotes;
+                const againstVotes = propStatus.againstVotes;
+                const state = propStatus.state;
+                const description = propStatus.desc;
+                if(state === "Active" || state === "Passed") {
+                    newActiveDeadlines.set(id, endBlock);
+                }
+                let typeName = "";
+                let detailHtml = "";
+                if(policyType == 1) {
+                    typeName = "📈 修改劳动税";
+                    const percent = formatBpToPercent(targetValue.toNumber());
+                    detailHtml = `目标税率: <strong>${percent}%</strong> (${targetValue.toNumber()} BP)`;
+                } else if(policyType == 2) {
+                    typeName = "📈 修改资本税";
+                    const percent = formatBpToPercent(targetValue.toNumber());
+                    detailHtml = `目标税率: <strong>${percent}%</strong> (${targetValue.toNumber()} BP)`;
+                } else if(policyType == 3) {
+                    typeName = "🏦 转移国库资金";
+                    detailHtml = `新国库地址: <strong>${formatAddress(targetAddr)}</strong> <a href="${etherscanLink(targetAddr)}" target="_blank">🔗</a>`;
+                } else if(policyType == 4) {
+                    typeName = "💰 发放补贴";
+                    const amountEth = ethers.utils.formatEther(targetValue);
+                    detailHtml = `接收地址: <strong>${formatAddress(targetAddr)}</strong> | 数量: <strong>${formatNumber(amountEth)} JCP</strong>`;
+                } else if(policyType == 5) {
+                    typeName = "🔒 冻结账户";
+                    detailHtml = `目标地址: <strong>${formatAddress(targetAddr)}</strong> <a href="${etherscanLink(targetAddr)}" target="_blank">🔗</a>`;
+                } else if(policyType == 6) {
+                    typeName = "🔓 解冻账户";
+                    detailHtml = `目标地址: <strong>${formatAddress(targetAddr)}</strong> <a href="${etherscanLink(targetAddr)}" target="_blank">🔗</a>`;
+                } else {
+                    typeName = "📄 其他";
+                    detailHtml = `数值: ${targetValue.toString()} | 地址: ${formatAddress(targetAddr)}`;
+                }
+                const forVotesEth = formatNumber(ethers.utils.formatEther(forVotes));
+                const againstVotesEth = formatNumber(ethers.utils.formatEther(againstVotes));
+                const endTimeStr = await getEstimatedEndTime(endBlock, currentBlock);
+                container.innerHTML += `
+                    <div class="proposal-item">
+                        <div class="flex-between">
+                            <b>#${id}</b>
+                            <div>
+                                <span class="status-badge" style="background:#3b82f6;">${tState(state)}</span>
+                                <button class="btn-link" onclick="openEtherscan('${etherscanLink(config.dao)}')">🔗</button>
+                            </div>
+                        </div>
+                        <div><strong>${typeName}</strong></div>
+                        <div>${detailHtml}</div>
+                        <div class="flex-between">
+                            <span>👍 ${forVotesEth} | 👎 ${againstVotesEth}</span>
+                            <span>⏳ 截止: ${endTimeStr}</span>
+                        </div>
+                        <div style="font-size:0.7rem; color:#64748b;">📝 ${description.substring(0,80)}</div>
+                    </div>
+                `;
+            }
+            if(count===0) container.innerHTML = "<div>暂无提案</div>";
+            activeProposalDeadlines = newActiveDeadlines;
+        } catch(e){ addLog(`加载提案失败: ${e.message}`, true); }
+    }
+
+    async function loadSkills() {
+        if(!contracts.skill) return;
+        try {
+            const totalPages = Math.ceil(totalSkills / skillPageSize);
+            document.getElementById('skill-total-pages').innerText = totalPages;
+            if(currentSkillPage > totalPages && totalSkills>0) currentSkillPage = totalPages;
+            let skills = [];
+            if(totalSkills>0) {
+                const rawSkills = await contracts.skill.getRecordsPaged(
+                    Math.max(0, totalSkills - currentSkillPage * skillPageSize),
+                    skillPageSize
+                );
+                skills = [...rawSkills].reverse();
+            }
+            const container = document.getElementById('skills-container');
+            if(skills.length) {
+                container.innerHTML = skills.map(s => `
+                    <div class="skill-card">
+                        <div>📌 ${s.content.length>50 ? s.content.substring(0,50)+"..." : s.content}</div>
+                        <div>💰 ${formatNumber(ethers.utils.formatEther(s.reward))} JCP</div>
+                        <div>👤 ${formatAddress(s.student)} <button class="btn-link" onclick="openEtherscan('${etherscanLink(s.student)}')">🔗</button></div>
+                        <div>🕒 ${new Date(s.timestamp*1000).toLocaleString()}</div>
+                    </div>
+                `).join('');
+            } else container.innerHTML = "<div>暂无技能</div>";
+            document.getElementById('skill-page').innerText = currentSkillPage;
+        } catch(e){ addLog(`技能加载错误:${e.message}`,true); }
+    }
+
+    // 业务操作
+    async function handleAddLiquidity() {
+        const j = ethers.utils.parseEther(document.getElementById('add-lp-jcp').value||"0");
+        const u = ethers.utils.parseEther(document.getElementById('add-lp-usd').value||"0");
+        if(j.isZero()||u.isZero()) return showToast("数量需大于0", true);
+        const tx = await contracts.dex.addLiquidity(j,u);
+        await withLoading(tx.wait(), "添加流动性中..."); refreshAll();
+    }
+    async function handleRemoveLiquidity() {
+        const amt = document.getElementById('remove-lp-amount').value;
+        if(!amt||parseFloat(amt)<=0) return showToast("请输入有效LP数量",true);
+        const tx = await contracts.dex.removeLiquidity(ethers.utils.parseEther(amt));
+        await withLoading(tx.wait(), "移除流动性中..."); refreshAll();
+    }
+    async function handleSwapJcpToUsd() {
+        const amt = ethers.utils.parseEther(document.getElementById('swap-jcp-amount').value||"0");
+        if(amt.isZero()) return showToast("请输入数量",true);
+        const tx = await contracts.dex.swapJCPForJCPUSD(amt);
+        await withLoading(tx.wait(), "兑换中..."); refreshAll();
+    }
+    async function handleSwapUsdToJcp() {
+        const amt = ethers.utils.parseEther(document.getElementById('swap-usd-amount').value||"0");
+        if(amt.isZero()) return showToast("请输入数量",true);
+        const tx = await contracts.dex.swapJCPUSDForJCP(amt);
+        await withLoading(tx.wait(), "兑换中..."); refreshAll();
+    }
+    async function handleApprove() {
+        let amountRaw = document.getElementById('approve-amount').value;
+        let amountWei = amountRaw ? ethers.utils.parseEther(amountRaw) : ethers.constants.MaxUint256;
+        const currentAllow = await contracts.jcp.allowance(userAddress, config.dex);
+        if(currentAllow.gte(amountWei)) return showToast("授权额度已足够", false);
+        const tx = await contracts.jcp.approve(config.dex, amountWei);
+        await withLoading(tx.wait(), "授权中..."); refreshAll();
+    }
+    async function handleCreateProposal() {
+        const propType = parseInt(document.getElementById('prop-type').value);
+        let addr = document.getElementById('prop-addr').value;
+        let rawVal = document.getElementById('prop-value').value;
+        const desc = document.getElementById('prop-desc').value || "无描述";
+        let finalValue;
+        if(rawVal.includes('e')) {
+            finalValue = ethers.BigNumber.from(ethers.utils.parseEther(rawVal));
+        } else if(propType === 1 || propType === 2) {
+            const num = parseInt(rawVal);
+            const maxBP = propType===1 ? 5000 : 2000;
+            if(isNaN(num) || num<0 || num>maxBP) return showToast(`税率BP必须在0~${maxBP}`, true);
+            finalValue = ethers.BigNumber.from(num);
+        } else {
+            finalValue = ethers.utils.parseEther(rawVal);
+        }
+        if([3,5,6].includes(propType) && !ethers.utils.isAddress(addr)) return showToast("需要有效的以太坊地址", true);
+        if(propType===4 && finalValue.isZero()) return showToast("补贴金额必须为正", true);
+        if(!ethers.utils.isAddress(addr)) addr = ethers.constants.AddressZero;
+        const tx = await contracts.dao.propose(propType, finalValue, addr, desc);
+        await withLoading(tx.wait(), "创建提案..."); refreshAll();
+    }
+    async function handleVote(support) {
+        const id = parseInt(document.getElementById('vote-prop-id').value);
+        if(isNaN(id)) return showToast("请输入提案ID");
+        const tx = await contracts.dao.vote(id, support);
+        await withLoading(tx.wait(), `投票 ${support?"赞成":"反对"}...`); refreshAll();
+    }
+    async function handleExecute() {
+        const id = parseInt(document.getElementById('vote-prop-id').value);
+        if(isNaN(id)) return showToast("请输入提案ID");
+        const prop = await contracts.dao.getProposalStatus(id);
+        if(prop.state !== "Passed" && prop.state !== "Active") return showToast(`提案状态为${prop.state}，不可执行`, true);
+        const tx = await contracts.dao.executeProposal(id);
+        await withLoading(tx.wait(), "执行提案中..."); refreshAll();
+    }
+    async function handleSubmitSkill() {
+        const content = document.getElementById('skill-name').value;
+        if(!content) return showToast("请填写技能内容", true);
+        const tx = await contracts.skill.sellSkill(content);
+        await withLoading(tx.wait(), "提交技能..."); refreshAll();
+        document.getElementById('skill-name').value='';
+    }
+    async function handleDownloadSkills() {
+        if(!contracts.skill) return;
+        const total = (await contracts.skill.totalSkillsSubmitted()).toNumber();
+        const fetchCount = Math.min(total, 1000);
+        const batchSize = 100;
+        let all = [];
+        for(let off=0; off<fetchCount; off+=batchSize) {
+            const batch = await contracts.skill.getRecordsPaged(off, batchSize);
+            all.push(...batch);
+        }
+        all = [...all].reverse();
+        const csvRows = [["提交者地址", "技能内容", "奖励(JCP)", "时间戳"]];
+        for(const s of all) {
+            csvRows.push([s.student, `"${s.content.replace(/"/g, '""')}"`, ethers.utils.formatEther(s.reward), new Date(s.timestamp*1000).toISOString()]);
+        }
+        const csvContent = csvRows.map(row => row.join(",")).join("\n");
+        const blob = new Blob(["\uFEFF" + csvContent], {type: "text/csv;charset=utf-8;"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download="skills_export.csv"; a.click(); URL.revokeObjectURL(url);
+        addLog(`已导出 ${all.length} 条技能记录为CSV`);
+    }
+    async function handlePrevPage() { if(currentSkillPage>1) { currentSkillPage--; loadSkills(); } }
+    async function handleNextPage() { if(currentSkillPage*skillPageSize < totalSkills) { currentSkillPage++; loadSkills(); } }
+
+    // 钱包连接
+    async function connectWallet() {
+        if(!window.ethereum) return showToast("请安装MetaMask", true);
+        try {
+            const accounts = await ethereum.request({method:'eth_requestAccounts'});
+            userAddress = accounts[0];
+            document.getElementById('user-address').innerText = formatAddress(userAddress);
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            const network = await provider.getNetwork();
+            if(network.chainId !== 11155111) {
+                document.getElementById('network-status').innerText = "❌ 非Sepolia";
+                addLog("请切换到 Sepolia 测试网", true);
+                isReady = false;
+                return;
+            }
+            document.getElementById('network-status').innerText = "✅ Sepolia";
+            signer = provider.getSigner();
+            const ok = await initContracts();
+            if(ok) { 
+                isReady = true; 
+                await updateCurrentBlock();
+                if(blockInterval) clearInterval(blockInterval);
+                blockInterval = setInterval(async () => { if(isReady) await updateCurrentBlock(); }, 10000);
+                await refreshAll(); 
+                addLog(`已连接: ${userAddress}`);
+            } else isReady = false;
+        } catch(e) { addLog(`连接失败: ${e.message}`, true); }
+    }
+    async function switchToSepolia() {
+        try {
+            await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xaa36a7' }] });
+            addLog("请重新连接钱包");
+            connectWallet();
+        } catch(e) { showToast("切换网络失败", true); }
+    }
+
+    // 配置弹窗
+    const modal = document.getElementById('config-modal');
+    function openConfig() {
+        document.getElementById('cfg-jcp').value = config.jcpToken;
+        document.getElementById('cfg-usd').value = config.jcpUsdToken;
+        document.getElementById('cfg-dex').value = config.dex;
+        document.getElementById('cfg-dao').value = config.dao;
+        document.getElementById('cfg-skill').value = config.skillMarket;
+        document.getElementById('cfg-treasury').value = config.treasury;
+        document.getElementById('link-jcp').href = etherscanLink(config.jcpToken);
+        document.getElementById('link-usd').href = etherscanLink(config.jcpUsdToken);
+        document.getElementById('link-dex').href = etherscanLink(config.dex);
+        document.getElementById('link-dao').href = etherscanLink(config.dao);
+        document.getElementById('link-skill').href = etherscanLink(config.skillMarket);
+        document.getElementById('link-treasury').href = etherscanLink(config.treasury);
+        modal.style.display = 'flex';
+    }
+    function closeConfig() { modal.style.display = 'none'; }
+    async function saveConfig() {
+        const newCfg = {
+            jcpToken: document.getElementById('cfg-jcp').value.trim(),
+            jcpUsdToken: document.getElementById('cfg-usd').value.trim(),
+            dex: document.getElementById('cfg-dex').value.trim(),
+            dao: document.getElementById('cfg-dao').value.trim(),
+            skillMarket: document.getElementById('cfg-skill').value.trim(),
+            treasury: document.getElementById('cfg-treasury').value.trim()
+        };
+        if(!ethers.utils.isAddress(newCfg.jcpToken) || !ethers.utils.isAddress(newCfg.dao)) return showToast("地址无效", true);
+        config = newCfg;
+        closeConfig();
+        addLog("配置已更新，请重新连接钱包");
+        if(signer) { const ok = await initContracts(); if(ok) { isReady=true; refreshAll(); } else { isReady=false; } }
+    }
+    function clearConsole() { document.getElementById('console-area').innerHTML = ''; }
+
+    // 事件绑定
+    document.getElementById('connect-wallet-btn').onclick = connectWallet;
+    document.getElementById('manual-switch-sepolia').onclick = switchToSepolia;
+    document.getElementById('refresh-all-btn').onclick = () => { if(isReady) refreshAll(); else addLog("未就绪", true); };
+    document.getElementById('manual-refresh-proposals').onclick = () => { if(isReady) loadProposals(); else addLog("未就绪", true); };
+    document.getElementById('open-config-btn').onclick = openConfig;
+    document.getElementById('save-config').onclick = saveConfig;
+    document.getElementById('close-config').onclick = closeConfig;
+    document.getElementById('clear-console-inner').onclick = clearConsole;
+    document.getElementById('add-liquidity-btn').onclick = handleAddLiquidity;
+    document.getElementById('remove-liquidity-btn').onclick = handleRemoveLiquidity;
+    document.getElementById('swap-jcp-to-usd').onclick = handleSwapJcpToUsd;
+    document.getElementById('swap-usd-to-jcp').onclick = handleSwapUsdToJcp;
+    document.getElementById('approve-dex').onclick = handleApprove;
+    document.getElementById('propose-btn').onclick = handleCreateProposal;
+    document.getElementById('vote-for').onclick = () => handleVote(true);
+    document.getElementById('vote-against').onclick = () => handleVote(false);
+    document.getElementById('execute-prop').onclick = handleExecute;
+    document.getElementById('submit-skill-btn').onclick = handleSubmitSkill;
+    document.getElementById('prev-skill-page').onclick = handlePrevPage;
+    document.getElementById('next-skill-page').onclick = handleNextPage;
+    document.getElementById('download-all-skills').onclick = handleDownloadSkills;
+    document.getElementById('refresh-treasury-btn').onclick = () => refreshAll();
+    window.openEtherscan = openEtherscan;
+
+    addLog("最终优化版已加载");
+</script>
+</body>
+</html>
