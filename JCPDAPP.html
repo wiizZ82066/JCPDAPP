@@ -472,6 +472,8 @@
                 allResults.push(...batch);
             }
 
+            allResults.reverse();
+
             for(const [id, propRaw, propStatus] of allResults) {
                 const policyType = propRaw.policyType;
                 const targetValue = propRaw.targetValue;
