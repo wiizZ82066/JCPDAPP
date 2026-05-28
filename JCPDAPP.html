@@ -86,14 +86,13 @@
             <button id="submit-skill-btn" class="btn-primary">✨ 提交技能</button>
         </div>
         <div class="flex-row space-between" style="margin-top: 12px;">
-            <span>📄 技能列表 第 <span id="skill-page">1</span> 页 / 共 <span id="skill-total-pages">0</span> 页</span>
+            <span>📄 技能列表（共 <span id = 'skill-total-count'>0</span>条）
+            <button id="open-skills-modal" class="btn-secondary">📋 查看详情</button>
+            </span>
             <div>
-                <button id="prev-skill-page" class="btn-secondary">◀ 上一页</button>
-                <button id="next-skill-page" class="btn-secondary">下一页 ▶</button>
                 <button id="download-all-skills" class="btn-secondary">📥 导出为Excel (CSV)</button>
             </div>
         </div>
-        <div id="skills-container" class="skills-container">-- 技能列表 --</div>
     </div>
 
     <!-- 资产 & 流动性 -->
@@ -197,7 +196,22 @@
         <div class="flex-row"><button id="save-config" class="btn-primary">保存并重连</button><button id="close-config" class="btn-secondary">取消</button></div>
     </div>
 </div>
-
+<div id="skills-modal" class="modal">
+    <div class="modal-content" style="max-width:850px; max-height:80vh; overflow-y:auto;">
+        <div class="flex-between" style="margin-bottom:16px;">
+            <h3>📚 技能列表详情</h3>
+            <button id="close-skills-modal" class="btn-secondary">关闭</button>
+        </div>
+        <div class="flex-between" style="margin-bottom:12px;">
+            <span>第 <span id="skill-page">1</span> 页 / 共 <span id="skill-total-pages">0</span> 页</span>
+            <div>
+                <button id="prev-skill-page" class="btn-secondary">◀ 上一页</button>
+                <button id="next-skill-page" class="btn-secondary">下一页 ▶</button>
+            </div>
+        </div>
+        <div id="skills-container" class="skills-container"></div>
+    </div>
+</div>
 
 <!-- ==================== 全局配置 ==================== -->
 <script>
@@ -291,6 +305,14 @@
         addLog(loadingMsg);
         try { const res = await promise; addLog("✅ 操作成功"); return res; }
         catch(err) { let reason = err.reason || err.message; addLog(`❌ 失败: ${reason}`, true); alert(`操作失败: ${reason.substring(0,100)}`); throw err; }
+    }
+    function openSkillModal() {
+    document.getElementById('skills-modal').style.display = 'flex';
+    currentSkillPage = 1;
+    loadSkills();
+    }
+    function closeSkillModal() {
+        document.getElementById('skills-modal').style.display = 'none';
     }
 
     // 地址显示
@@ -425,6 +447,7 @@
                 contracts.skill.totalSkillsSubmitted()
             ]);
             totalSkills = skillTotal.toNumber();
+            document.getElementById('skill-total-count').innerText = totalSkills;
 
             document.getElementById('jcp-balance').innerText = formatNumber(ethers.utils.formatEther(jcpBal));
             document.getElementById('usd-balance').innerText = formatNumber(ethers.utils.formatEther(usdBal));
@@ -760,6 +783,8 @@
     document.getElementById('vote-against').onclick = () => handleVote(false);
     document.getElementById('execute-prop').onclick = handleExecute;
     document.getElementById('submit-skill-btn').onclick = handleSubmitSkill;
+    document.getElementById('open-skills-modal').onclick = openSkillModal;
+    document.getElementById('close-skills-modal').onclick = closeSkillModal;
     document.getElementById('prev-skill-page').onclick = handlePrevPage;
     document.getElementById('next-skill-page').onclick = handleNextPage;
     document.getElementById('download-all-skills').onclick = handleDownloadSkills;
